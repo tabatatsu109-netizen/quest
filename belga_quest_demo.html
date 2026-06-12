@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ベルガ・クエスト 〜水の王国と8つの精霊〜 提案デモ</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --night:#0B1626; --forest:#15402A; --forest-dark:#0E2C1D;
+    --river:#3FA8D8; --gold:#F2C14E; --gold-dark:#B8860B;
+    --hp:#E85D4A; --text:#FDF6E3; --green:#1A6B3C;
+  }
+  html,body{ height:100%; }
+  body{
+    background:#04070F;
+    font-family:'Hiragino Maru Gothic ProN','BIZ UDGothic','Yu Gothic',sans-serif;
+    display:flex; justify-content:center; align-items:center;
+    overflow:hidden; user-select:none;
+  }
+  #app{
+    position:relative; width:min(480px,100vw); height:min(860px,100vh);
+    background:var(--night); overflow:hidden;
+    border-radius:14px; box-shadow:0 0 60px rgba(63,168,216,.25);
+  }
+  @media (max-width:500px){ #app{ border-radius:0; } }
+
+  .screen{ position:absolute; inset:0; display:none; flex-direction:column; }
+  .screen.active{ display:flex; }
+  .scroll{ overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
+  .area-label{ color:var(--gold); font-size:15px; font-weight:bold; text-align:center; margin-top:16px; }
+  .stage{ flex:1; display:flex; justify-content:center; align-items:center; flex-direction:column; }
+  .char{ font-size:108px; line-height:1.1; animation:floaty 1.8s ease-in-out infinite; filter:drop-shadow(0 8px 14px rgba(0,0,0,.5)); }
+  @keyframes floaty{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+
+  .msg-window{ background:rgba(8,14,28,.94); border:3px solid #fff; border-radius:10px; margin:14px 14px 22px; padding:16px; min-height:158px; cursor:pointer; box-shadow:inset 0 0 0 2px rgba(255,255,255,.15); }
+  .msg-speaker{ color:var(--gold); font-size:14px; font-weight:bold; margin-bottom:8px; }
+  .msg-text{ color:#fff; font-size:18px; line-height:1.7; font-weight:600; min-height:62px; }
+  .msg-next{ color:var(--gold); font-size:13px; text-align:right; margin-top:8px; font-weight:bold; animation:blink 1s infinite; visibility:hidden; }
+  .msg-next.show{ visibility:visible; }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.1} }
+
+  .btn{ display:block; width:calc(100% - 28px); margin:6px auto; background:rgba(255,255,255,.08); border:2px solid var(--gold); border-radius:12px; color:#fff; font-size:17px; font-weight:bold; padding:14px; cursor:pointer; text-align:center; font-family:inherit; transition:transform .08s, background .15s; }
+  .btn:hover{ background:rgba(242,193,78,.22); }
+  .btn:active{ transform:scale(.96); }
+  .btn-big{ width:auto; margin:14px auto; background:var(--green); border:3px solid #fff; border-radius:60px; font-size:20px; padding:22px 36px; box-shadow:0 6px 0 rgba(0,0,0,.4); }
+  .btn-big:active{ transform:translateY(4px) scale(.97); box-shadow:0 2px 0 rgba(0,0,0,.4); }
+
+  .shake{ animation:shake .25s; }
+  @keyframes shake{ 0%{transform:translateX(0)} 20%{transform:translateX(14px)} 40%{transform:translateX(-14px)} 60%{transform:translateX(9px)} 80%{transform:translateX(-6px)} 100%{transform:translateX(0)} }
+
+  #screen-title{ justify-content:center; text-align:center; background:linear-gradient(180deg,#060B16 0%,#0B1626 45%,#0E2C1D 100%); }
+  .title-stars{ font-size:24px; letter-spacing:10px; animation:blink 2.4s infinite; }
+  .title-sub{ color:var(--gold); font-size:16px; letter-spacing:4px; font-weight:bold; margin-top:18px; }
+  .title-main{ color:#fff; font-size:42px; font-weight:bold; letter-spacing:3px; margin-top:8px; text-shadow:0 0 18px var(--gold), 0 0 50px rgba(242,193,78,.5); }
+  .title-art{ font-size:34px; margin-top:14px; letter-spacing:4px; }
+  .title-catch{ color:var(--text); font-size:15px; letter-spacing:3px; margin-top:22px; }
+  .pulse{ animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.07)} }
+  .demo-tag{ color:#6C7A8E; font-size:11px; margin-top:30px; line-height:1.6; }
+  .title-links{ margin-top:18px; }
+  .link-btn{ display:inline-block; color:var(--gold); font-size:13px; border:1px solid var(--gold-dark); border-radius:20px; padding:7px 16px; margin:4px; cursor:pointer; background:rgba(242,193,78,.08); }
+  .link-btn:active{ transform:scale(.95); }
+
+  #screen-gps{ justify-content:center; align-items:center; text-align:center; background:radial-gradient(circle at 50% 40%, #14304E 0%, #0B1626 70%); }
+  .gps-ring{ width:160px; height:160px; border-radius:50%; border:4px solid rgba(63,168,216,.3); display:flex; justify-content:center; align-items:center; position:relative; margin-bottom:20px; }
+  .gps-ring::before, .gps-ring::after{ content:''; position:absolute; inset:0; border-radius:50%; border:3px solid var(--river); animation:radar 2s ease-out infinite; }
+  .gps-ring::after{ animation-delay:1s; }
+  @keyframes radar{ 0%{transform:scale(.5); opacity:.9} 100%{transform:scale(1.4); opacity:0} }
+  .gps-pin{ font-size:64px; z-index:2; }
+  .gps-status{ color:#fff; font-size:18px; font-weight:bold; }
+  .gps-detail{ color:#9FD8FF; font-size:13px; margin-top:8px; font-variant:tabular-nums; min-height:40px; }
+
+  .map-header{ color:var(--gold); font-size:17px; font-weight:bold; text-align:center; margin-top:10px; }
+  .map-guide{ color:#fff; font-size:14px; font-weight:bold; text-align:center; margin-top:3px; }
+  .gps-live{ display:flex; justify-content:center; align-items:center; gap:6px; margin-top:4px; }
+  .gps-dot{ width:8px; height:8px; border-radius:50%; background:#4CD964; box-shadow:0 0 6px #4CD964; animation:blink 1.4s infinite; }
+  .gps-live-txt{ color:#8FE3A0; font-size:11px; font-weight:bold; }
+  #map-area{ position:relative; flex:1; margin:8px 10px; border-radius:16px; overflow:hidden; border:3px solid var(--gold-dark); background:linear-gradient(180deg,#10243A 0%,#15402A 30%,#0E2C1D 100%); }
+  .deco{ position:absolute; pointer-events:none; }
+  .river-band{ position:absolute; left:-12%; top:44%; width:130%; height:28px; pointer-events:none; background:linear-gradient(90deg,rgba(63,168,216,.7),rgba(63,168,216,.35)); border-radius:14px; transform:rotate(-12deg); box-shadow:0 0 22px rgba(63,168,216,.55); }
+  .spot{ position:absolute; width:104px; margin-left:-52px; text-align:center; cursor:pointer; transition:transform .15s; }
+  .spot:hover{ transform:scale(1.1); }
+  .spot .icon{ font-size:38px; }
+  .spot .star{ position:absolute; top:-12px; right:16px; font-size:20px; }
+  .spot .nm{ display:inline-block; color:#fff; font-size:11px; font-weight:bold; background:rgba(0,0,0,.55); border-radius:6px; padding:2px 5px; margin-top:2px; }
+  .spot .rl{ display:block; color:#B9C6A8; font-size:9px; margin-top:1px; }
+  .spot .dist{ display:inline-block; color:var(--gold); font-size:10px; font-weight:bold; margin-top:2px; background:rgba(0,0,0,.4); border-radius:5px; padding:1px 5px; }
+  .spot.near .dist{ color:#fff; background:var(--hp); animation:blink 1s infinite; }
+  #player-marker{ position:absolute; width:60px; margin-left:-30px; text-align:center; pointer-events:none; z-index:5; transition:left 1.3s ease-in-out, top 1.3s ease-in-out; }
+  #player-marker .icon{ font-size:30px; display:block; animation:hop .5s ease-in-out infinite alternate; }
+  @keyframes hop{ from{transform:translateY(0)} to{transform:translateY(-5px)} }
+  #player-marker .lbl{ color:var(--gold); font-size:10px; font-weight:bold; }
+  .accuracy-circle{ position:absolute; border-radius:50%; border:2px solid rgba(63,168,216,.6); background:rgba(63,168,216,.12); pointer-events:none; z-index:4; transition:left 1.3s, top 1.3s; }
+  .status-bar{ display:flex; justify-content:space-around; background:rgba(0,0,0,.45); margin:0 10px; border-radius:10px; padding:8px 4px; border:1px solid var(--gold-dark); color:var(--text); font-size:12.5px; font-weight:bold; }
+  .map-footer{ display:flex; gap:8px; margin:8px 10px 12px; }
+  .map-footer .btn{ margin:0; flex:1; font-size:13px; padding:11px 6px; }
+  #toast{ position:absolute; bottom:120px; left:50%; transform:translateX(-50%); background:rgba(8,14,28,.96); border:2px solid var(--gold); border-radius:12px; color:#fff; font-size:14px; font-weight:bold; padding:10px 18px; max-width:86%; text-align:center; opacity:0; transition:opacity .25s; pointer-events:none; z-index:30; }
+  #toast.show{ opacity:1; }
+  #approach{ position:absolute; top:0; left:0; right:0; background:linear-gradient(90deg,var(--hp),#C0392B); color:#fff; font-weight:bold; text-align:center; padding:10px; font-size:14px; transform:translateY(-100%); transition:transform .4s; z-index:25; }
+  #approach.show{ transform:translateY(0); }
+
+  .choose-title{ color:var(--gold); font-size:22px; font-weight:bold; text-align:center; margin-bottom:18px; }
+  .partner-card{ display:flex; align-items:center; gap:14px; cursor:pointer; background:rgba(255,255,255,.07); border:2px solid var(--gold); border-radius:14px; margin:8px 22px; padding:14px; transition:transform .12s, background .15s; }
+  .partner-card:hover{ background:rgba(242,193,78,.16); transform:scale(1.03); }
+  .partner-card .pe{ font-size:50px; }
+  .partner-card .pn{ color:#fff; font-size:19px; font-weight:bold; }
+  .partner-card .pd{ color:#C8D2DE; font-size:13px; margin-top:3px; }
+
+  .quiz-box{ background:rgba(8,14,28,.94); border:3px solid #fff; border-radius:10px; margin:14px 14px 22px; padding:16px; }
+  .quiz-label{ color:var(--gold); font-size:14px; font-weight:bold; margin-bottom:6px; }
+  .quiz-q{ color:#fff; font-size:18px; font-weight:bold; line-height:1.5; margin-bottom:10px; }
+  .quiz-wrong{ color:#FF8A7A; font-size:14px; font-weight:bold; margin-bottom:8px; display:none; }
+  .quiz-wrong.show{ display:block; }
+  .progress-outer{ height:24px; background:rgba(255,255,255,.12); border:2px solid #fff; border-radius:12px; margin:20px 36px 0; overflow:hidden; }
+  .progress-inner{ height:100%; width:0%; background:var(--river); border-radius:10px; transition:width .15s; }
+  .progress-txt{ color:#fff; font-size:15px; font-weight:bold; text-align:center; margin-top:8px; }
+  .wind-msg{ color:#9FD8FF; font-size:17px; font-weight:bold; text-align:center; margin-top:8px; min-height:24px; }
+  .bridge-stage{ text-align:center; animation:sway 2.8s ease-in-out infinite; }
+  @keyframes sway{ 0%,100%{transform:rotate(-3deg)} 50%{transform:rotate(3deg)} }
+
+  .hp-wrap{ padding:10px 24px 0; }
+  .hp-name{ color:var(--text); font-size:13px; font-weight:bold; }
+  .hp-outer{ height:18px; background:rgba(255,255,255,.15); border:1.5px solid #fff; border-radius:9px; overflow:hidden; margin-top:3px; }
+  .hp-inner{ height:100%; width:100%; background:linear-gradient(90deg,#E85D4A,#C0392B); transition:width .35s; }
+  .renda-timer{ color:#FFD27A; font-size:18px; font-weight:bold; text-align:center; }
+  .renda-count{ color:#fff; font-size:28px; font-weight:bold; text-align:center; margin-top:4px; }
+  .renda-help{ color:var(--gold); font-size:13px; text-align:center; margin-top:4px; }
+
+  #fanfare{ position:absolute; inset:0; z-index:50; display:none; cursor:pointer; background:rgba(5,8,18,.96); flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+  #fanfare.active{ display:flex; }
+  #fanfare .gem{ font-size:108px; margin:14px 0; animation:gemIn .7s cubic-bezier(.2,1.6,.4,1) both; }
+  @keyframes gemIn{ from{transform:scale(0) rotate(-30deg)} to{transform:scale(1) rotate(0)} }
+  #fanfare .ft{ font-size:21px; font-weight:bold; line-height:1.6; padding:0 24px; }
+  #fanfare .fs{ color:var(--text); font-size:14px; line-height:1.7; margin-top:12px; padding:0 26px; }
+  #fanfare .fn{ color:var(--gold); font-size:13px; font-weight:bold; margin-top:34px; animation:blink 1s infinite; }
+  #flash{ position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:60; }
+  #flash.go{ animation:flashAnim .8s ease-out; }
+  @keyframes flashAnim{ 0%{opacity:1} 100%{opacity:0} }
+
+  #screen-ending{ justify-content:center; text-align:center; background:linear-gradient(180deg,#0B1626 0%,#143052 60%,#1A6B3C 130%); }
+  .end-title{ color:#fff; font-size:20px; font-weight:bold; margin-top:14px; }
+  .end-card{ background:rgba(242,193,78,.1); border:3px solid var(--gold); border-radius:16px; margin:22px 34px 0; padding:20px; }
+  .end-card-title{ color:var(--gold); font-size:27px; font-weight:bold; text-shadow:0 0 14px rgba(242,193,78,.6); }
+  .end-card-txt{ color:#fff; font-size:15px; font-weight:bold; margin-top:8px; }
+  .end-teaser{ color:#AFC3D9; font-size:14px; line-height:1.8; margin-top:22px; padding:0 20px; }
+
+  #screen-merit{ background:linear-gradient(180deg,#0B1626 0%,#102A1E 100%); }
+  .merit-head{ text-align:center; padding:20px 16px 8px; }
+  .merit-badge{ display:inline-block; color:#0B1626; background:var(--gold); font-size:12px; font-weight:bold; padding:4px 12px; border-radius:20px; }
+  .merit-title{ color:#fff; font-size:24px; font-weight:bold; margin-top:12px; line-height:1.4; }
+  .merit-title b{ color:var(--gold); }
+  .merit-sub{ color:#AFC3D9; font-size:13px; margin-top:8px; line-height:1.6; }
+  .merit-list{ padding:6px 16px 16px; }
+  .merit-item{ display:flex; gap:14px; background:rgba(255,255,255,.06); border-left:4px solid var(--gold); border-radius:10px; padding:14px; margin:9px 0; }
+  .merit-item .mi-icon{ font-size:34px; line-height:1; }
+  .merit-item .mi-h{ color:#fff; font-size:16px; font-weight:bold; }
+  .merit-item .mi-big{ color:var(--gold); font-size:15px; font-weight:bold; }
+  .merit-item .mi-d{ color:#C8D2DE; font-size:12.5px; line-height:1.6; margin-top:3px; }
+  .merit-kpi{ display:flex; justify-content:space-around; margin:8px 16px; background:rgba(63,168,216,.1); border:1px solid var(--river); border-radius:12px; padding:14px 8px; }
+  .kpi-box{ text-align:center; }
+  .kpi-num{ color:var(--gold); font-size:26px; font-weight:bold; line-height:1; }
+  .kpi-lbl{ color:#9FD8FF; font-size:11px; margin-top:5px; }
+  .merit-flow{ margin:8px 16px; background:rgba(255,255,255,.04); border-radius:12px; padding:14px; }
+  .merit-flow-h{ color:var(--gold); font-size:14px; font-weight:bold; margin-bottom:8px; }
+  .flow-line{ color:#D5DEE9; font-size:13px; line-height:1.9; }
+  .flow-line b{ color:#fff; }
+  .merit-note{ color:#7E8FA3; font-size:11px; line-height:1.7; margin:6px 16px 20px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <div class="screen active" id="screen-title">
+    <div class="title-stars">✨ ⭐ ✨</div>
+    <div class="title-sub">水の王国と 8つの精霊</div>
+    <div class="title-main">ベルガ・クエスト</div>
+    <div class="title-art">🏔️🌲🌉🌲🏕️</div>
+    <div class="title-catch">きみの足で、王国を救え。</div>
+    <div style="margin-top:36px;">
+      <button class="btn btn-big pulse" onclick="goGpsIntro()">⚔️ ぼうけんを はじめる</button>
+    </div>
+    <div class="title-links">
+      <span class="link-btn" onclick="showScreen('screen-merit')">🏞️ 施設さま向け メリット紹介</span>
+    </div>
+    <div class="demo-tag">白州・尾白の森名水公園べるが × GPS冒険RPG<br>提案デモ版 / 🔊 効果音が鳴ります</div>
+  </div>
+
+  <div class="screen" id="screen-gps">
+    <div class="gps-ring"><span class="gps-pin">📍</span></div>
+    <div class="gps-status" id="gps-status">現在地を取得しています…</div>
+    <div class="gps-detail" id="gps-detail"></div>
+  </div>
+
+  <div class="screen" id="screen-map">
+    <div class="map-header">🗺️ ヴェルガおうこく ワールドマップ</div>
+    <div class="map-guide" id="map-guide"></div>
+    <div class="gps-live"><span class="gps-dot"></span><span class="gps-live-txt" id="gps-live-txt">GPS受信中</span></div>
+    <div id="approach">📍 スポットに 15m まで ちかづいた! イベント はっせい!</div>
+    <div id="map-area">
+      <div class="deco" style="top:8px;left:16px;font-size:42px;">🏔️</div>
+      <div class="deco" style="top:12px;right:24px;font-size:30px;">🌙</div>
+      <div class="river-band"></div>
+      <div class="deco" style="top:36%;left:36%;font-size:22px;">🌲</div>
+      <div class="deco" style="top:62%;right:16%;font-size:22px;">🌲</div>
+      <div class="deco" style="top:72%;left:9%;font-size:22px;">🌳</div>
+      <div class="accuracy-circle" id="acc-circle"></div>
+      <div id="spots"></div>
+      <div id="player-marker">
+        <span class="icon" id="marker-icon">🧒</span>
+        <span class="lbl" id="marker-lbl">いまここ</span>
+      </div>
+    </div>
+    <div class="status-bar">
+      <span id="status-partner">あいぼう:─</span>
+      <span id="status-kakera">かけら:─ (0/2)</span>
+    </div>
+    <div class="map-footer">
+      <button class="btn" onclick="showScreen('screen-merit')">🏞️ 施設メリット</button>
+      <button class="btn" id="next-target-btn">🧪 つぎへ移動</button>
+    </div>
+    <div id="toast"></div>
+  </div>
+
+  <div class="screen" id="screen-event"></div>
+
+  <div class="screen" id="screen-ending">
+    <div style="font-size:26px;">⭐ ✨ ⭐ ✨ ⭐</div>
+    <div class="end-title">🏔️ おうこくに へいわが もどった 🏔️</div>
+    <div class="end-card">
+      <div class="end-card-title">👑 白州の勇者 👑</div>
+      <div class="end-card-txt" id="end-partner"></div>
+      <div class="end-card-txt">あつめたかけら:💧 🌀</div>
+    </div>
+    <div class="end-teaser">……だが、せいれいは ぜんぶで 8たい。<br>のこりの 6たいは、ほんものの「べるが」の<br>もりや かわで、きみを まっている──。</div>
+    <div style="margin-top:22px;">
+      <button class="btn btn-big" onclick="showScreen('screen-merit')">🏞️ 施設さまへのメリットを見る</button>
+    </div>
+    <div style="margin-top:4px;"><span class="link-btn" onclick="resetGame()">🏠 タイトルへ もどる</span></div>
+  </div>
+
+  <div class="screen scroll" id="screen-merit">
+    <div class="merit-head">
+      <span class="merit-badge">べるが さま 導入メリット</span>
+      <div class="merit-title">園内が、まるごと<br><b>RPGのフィールド</b>になる。</div>
+      <div class="merit-sub">スタンプラリーではなく「歩くこと自体が冒険」になる体験。<br>子どもが夢中で歩き、滞在が延び、園内の各施設に人が流れます。</div>
+    </div>
+
+    <div class="merit-kpi">
+      <div class="kpi-box"><div class="kpi-num">+60<span style="font-size:14px;">分</span></div><div class="kpi-lbl">滞在時間アップ</div></div>
+      <div class="kpi-box"><div class="kpi-num">8<span style="font-size:14px;">拠点</span></div><div class="kpi-lbl">園内を回遊</div></div>
+      <div class="kpi-box"><div class="kpi-num">∞</div><div class="kpi-lbl">同時プレイ人数</div></div>
+    </div>
+
+    <div class="merit-list">
+      <div class="merit-item">
+        <div class="mi-icon">⏱️</div>
+        <div>
+          <div class="mi-h">滞在時間を のばす</div>
+          <div class="mi-big">+60分の延長を見込める</div>
+          <div class="mi-d">「次のスポットへ行きたい」が連続するので、子どもが自然に長く遊びます。滞在が延びれば、それだけ園内消費の機会も増えます。</div>
+        </div>
+      </div>
+      <div class="merit-item">
+        <div class="mi-icon">🗺️</div>
+        <div>
+          <div class="mi-h">園内の回遊を うながす</div>
+          <div class="mi-d">普段は素通りされがちな奥のエリアにも「精霊」を配置することで、園の隅々まで歩いてもらえます。導線をゲームで設計できます。</div>
+        </div>
+      </div>
+      <div class="merit-item">
+        <div class="mi-icon">♨️</div>
+        <div>
+          <div class="mi-h">温泉・売店・キャンプ場へ 送客</div>
+          <div class="mi-d">尾白の湯=入浴者限定モンスター、売店=アイテム連動、キャンプ場=夜限定イベント。「そこに行く理由」をゲーム内に作って各施設へ誘導します。</div>
+        </div>
+      </div>
+      <div class="merit-item">
+        <div class="mi-icon">👨‍👩‍👧‍👦</div>
+        <div>
+          <div class="mi-h">繁忙期でも 多人数が同時に遊べる</div>
+          <div class="mi-d">スマホ/iPadさえあれば人数無制限。行列も整理券も不要。GW・夏休みなどの繁忙期に、待たせずに体験を提供できます。</div>
+        </div>
+      </div>
+      <div class="merit-item">
+        <div class="mi-icon">🔄</div>
+        <div>
+          <div class="mi-h">毎年ストーリーを 更新できる</div>
+          <div class="mi-d">季節イベント・新ボス・限定モンスターを追加するだけで「今年の冒険」が生まれます。リピーターが「また来る理由」を毎年つくれます。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="merit-flow">
+      <div class="merit-flow-h">📈 売上につながる流れ(イメージ)</div>
+      <div class="flow-line">
+        歩く → 滞在が延びる → <b>のどが渇く・お腹がすく</b><br>
+        → 売店・食堂を利用 → <b>客単価アップ</b><br>
+        → 「夜・温泉限定モンスター」 → <b>宿泊・入浴へ送客</b><br>
+        → 図鑑が埋まらない → <b>リピート来園</b>
+      </div>
+    </div>
+
+    <div class="merit-note">
+      ※ 本デモはGitHub Pagesで公開でき、スマホでURLを開くだけ・インストール不要で体験できます。<br>
+      ※ 本番ではGPSで現在地を判定し、スポット15m以内で自動的にイベントが発生します(本デモはGPS取得を体験として再現しています)。
+    </div>
+
+    <div style="text-align:center; padding:0 0 26px;">
+      <button class="btn btn-big" onclick="showScreen('screen-title')">▶ デモを体験してみる</button>
+    </div>
+  </div>
+
+  <div id="fanfare">
+    <div style="font-size:30px;">✨ ✨ ✨</div>
+    <div class="gem" id="fanfare-gem">💧</div>
+    <div class="ft" id="fanfare-title"></div>
+    <div class="fs" id="fanfare-sub"></div>
+    <div style="font-size:30px;margin-top:10px;">✨ ✨ ✨</div>
+    <div class="fn">▼ クリックしてつづける</div>
+  </div>
+  <div id="flash"></div>
+
+</div>
+
+<script>
+const PARTNERS = [
+  { id:'hino',  emoji:'🐿️', name:'ヒノコリス',   desc:'ひのせいれい・こうげきがとくい' },
+  { id:'shizu', emoji:'🪲', name:'シズクワガタ', desc:'みずのせいれい・まもりがとくい' },
+  { id:'koke',  emoji:'🦝', name:'コケダヌキ',   desc:'もりのせいれい・かいふくがとくい' },
+];
+const KAKERA = {
+  water:{ emoji:'💧', name:'みずの せいれいのかけら', color:'#4FC3F7' },
+  wind :{ emoji:'🌀', name:'かぜの せいれいのかけら', color:'#A5D6A7' },
+};
+const SPOTS = [
+  { id:'guild',  emoji:'🏰', name:'ぼうけんしゃギルド',     real:'(総合案内所)',       x:50, y:80, dist:5   },
+  { id:'valley', emoji:'🐉', name:'すいりゅうのたに',       real:'(尾白川)',           x:19, y:50, dist:180 },
+  { id:'bridge', emoji:'🌉', name:'しれんのてんくうばし',   real:'(森の吊橋)',         x:80, y:42, dist:260 },
+  { id:'castle', emoji:'🌋', name:'まおうじょうまえひろば', real:'(森のイベント広場)', x:50, y:12, dist:420 },
+];
+
+let game = { partner:null, kakera:[], cleared:{} };
+let currentSpot = 'guild';
+let moving = false;
+
+let AC=null;
+function ac(){ if(!AC){ AC=new (window.AudioContext||window.webkitAudioContext)(); } if(AC.state==='suspended')AC.resume(); return AC; }
+function tone(freq,dur=0.12,type='square',vol=0.12,when=0){
+  try{ const ctx=ac(),o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=type; o.frequency.value=freq;
+    g.gain.setValueAtTime(vol,ctx.currentTime+when);
+    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+when+dur);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(ctx.currentTime+when); o.stop(ctx.currentTime+when+dur+0.05);
+  }catch(e){}
+}
+const SFX={
+  blip:()=>tone(820,.04,'square',.05),
+  select:()=>{tone(660,.08);tone(990,.12,'square',.12,.08);},
+  correct:()=>{[523,659,784,1047].forEach((f,i)=>tone(f,.14,'square',.12,i*.09));},
+  wrong:()=>{tone(180,.25,'sawtooth',.16);tone(140,.3,'sawtooth',.14,.1);},
+  hit:()=>{tone(120,.08,'sawtooth',.2);tone(90,.1,'square',.15,.03);},
+  step:()=>tone(440+Math.random()*100,.05,'triangle',.1),
+  ping:()=>{tone(1320,.1,'sine',.12);tone(1760,.18,'sine',.1,.1);},
+  fanfare:()=>{[523,659,784,1047,1319,1568].forEach((f,i)=>tone(f,.22,'square',.13,i*.11));tone(2093,.5,'triangle',.12,.66);},
+  boom:()=>{tone(60,.6,'sawtooth',.3);tone(45,.8,'square',.2,.05);[1047,1319,1568,2093].forEach((f,i)=>tone(f,.3,'triangle',.12,.3+i*.1));},
+};
+
+const $=(id)=>document.getElementById(id);
+function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+function shakeApp(){ const a=$('app'); a.classList.remove('shake'); void a.offsetWidth; a.classList.add('shake'); }
+function flash(){ const f=$('flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); }
+function showToast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._tm); t._tm=setTimeout(()=>t.classList.remove('show'),2200); }
+
+function dialogScene({topLabel,bg,lines,onDone}){
+  const sc=$('screen-event');
+  sc.style.background=bg||'var(--night)';
+  sc.innerHTML=`
+    <div class="area-label">${topLabel||''}</div>
+    <div class="stage"><div class="char" id="dlg-char"></div></div>
+    <div class="msg-window" id="dlg-win">
+      <div class="msg-speaker" id="dlg-speaker"></div>
+      <div class="msg-text" id="dlg-text"></div>
+      <div class="msg-next" id="dlg-next">▼ クリック</div>
+    </div>`;
+  showScreen('screen-event');
+  let idx=0,count=0,timer=null;
+  function startLine(){
+    const L=lines[idx];
+    $('dlg-char').textContent=L.emoji; $('dlg-speaker').textContent=L.speaker;
+    $('dlg-text').textContent=''; $('dlg-next').classList.remove('show'); count=0;
+    clearInterval(timer);
+    timer=setInterval(()=>{ count++; $('dlg-text').textContent=L.text.slice(0,count);
+      if(count%3===0)SFX.blip();
+      if(count>=L.text.length){clearInterval(timer);$('dlg-next').classList.add('show');}
+    },30);
+  }
+  function tap(){ const L=lines[idx];
+    if(count<L.text.length){clearInterval(timer);count=L.text.length;$('dlg-text').textContent=L.text;$('dlg-next').classList.add('show');return;}
+    SFX.select();
+    if(idx<lines.length-1){idx++;startLine();} else {sc.onclick=null;onDone&&onDone();}
+  }
+  sc.onclick=tap; startLine();
+}
+
+function fanfare({emoji,title,sub,color,onDone}){
+  flash(); SFX.fanfare();
+  $('fanfare-gem').textContent=emoji;
+  $('fanfare-title').textContent=title; $('fanfare-title').style.color=color||'var(--gold)';
+  $('fanfare-sub').textContent=sub||'';
+  const g=$('fanfare-gem'); g.style.animation='none'; void g.offsetWidth; g.style.animation='';
+  const f=$('fanfare'); f.classList.add('active');
+  f.onclick=()=>{f.classList.remove('active');f.onclick=null;SFX.select();onDone&&onDone();};
+}
+
+function goGpsIntro(){
+  ac(); SFX.select();
+  showScreen('screen-gps');
+  const steps=[
+    {s:'📡 衛星に接続しています…', d:'GPS sats: 探索中…'},
+    {s:'📍 現在地を特定しています…', d:'緯度 35.7841 / 経度 138.3102'},
+    {s:'🟢 現在地を取得しました!', d:'精度 ±8m / ヴェルガおうこく 内'},
+  ];
+  let i=0;
+  $('gps-status').textContent=steps[0].s; $('gps-detail').textContent=steps[0].d; SFX.ping();
+  const t=setInterval(()=>{
+    i++;
+    if(i>=steps.length){ clearInterval(t);
+      setTimeout(()=>{ SFX.fanfare(); renderMap(); showScreen('screen-map'); }, 700);
+      return;
+    }
+    $('gps-status').textContent=steps[i].s; $('gps-detail').textContent=steps[i].d; SFX.ping();
+  },1100);
+}
+
+function renderMap(){
+  let guide='🏰 ぼうけんしゃギルドへ いこう!';
+  if(game.partner && !game.cleared.valley) guide='🐉 すいりゅうのたに へ むかえ!';
+  else if(game.partner && !game.cleared.bridge) guide='🌉 しれんのてんくうばし へ むかえ!';
+  else if(game.kakera.length>=2) guide='🌋 まおうじょう で さいごのたたかいだ!';
+  $('map-guide').textContent=guide;
+
+  const box=$('spots'); box.innerHTML='';
+  SPOTS.forEach(s=>{
+    const near = s.dist<=50 && !game.cleared[s.id];
+    const d=document.createElement('div');
+    d.className='spot'+(near?' near':'');
+    d.style.left=s.x+'%'; d.style.top=`calc(${s.y}% - 26px)`;
+    const distTxt = game.cleared[s.id] ? '⭐クリア' : (s.dist<=15 ? '📍とうちゃく' : `あと ${s.dist}m`);
+    d.innerHTML=`<span class="icon">${s.emoji}</span>${game.cleared[s.id]?'<span class="star">⭐</span>':''}
+      <span class="nm">${s.name}</span><span class="rl">${s.real}</span><br><span class="dist">${distTxt}</span>`;
+    d.onclick=()=>goTo(s);
+    box.appendChild(d);
+  });
+
+  placeMarker(currentSpot,false);
+  updateAccuracyCircle();
+  $('marker-icon').textContent=game.partner?game.partner.emoji:'🧒';
+  $('status-partner').textContent='あいぼう:'+(game.partner?`${game.partner.emoji} ${game.partner.name}`:'─');
+  $('status-kakera').textContent='かけら:'+(game.kakera.length?game.kakera.map(k=>KAKERA[k].emoji).join(' '):'─')+` (${game.kakera.length}/2)`;
+
+  const next = nextTarget();
+  const btn=$('next-target-btn');
+  if(next){ btn.textContent=`🧪 ${next.emoji}へ移動`; btn.onclick=()=>goTo(next); btn.style.opacity=1; }
+  else { btn.textContent='🧪 ─'; btn.onclick=null; btn.style.opacity=.4; }
+}
+
+function nextTarget(){
+  if(!game.cleared.guild) return SPOTS.find(s=>s.id==='guild');
+  if(!game.cleared.valley) return SPOTS.find(s=>s.id==='valley');
+  if(!game.cleared.bridge) return SPOTS.find(s=>s.id==='bridge');
+  if(game.kakera.length>=2 && !game.cleared.castle) return SPOTS.find(s=>s.id==='castle');
+  return null;
+}
+
+function placeMarker(spotId,animate){
+  const s=SPOTS.find(x=>x.id===spotId); const m=$('player-marker');
+  if(!animate)m.style.transition='none';
+  m.style.left=s.x+'%'; m.style.top=`calc(${s.y}% - 66px)`;
+  if(!animate){void m.offsetWidth;m.style.transition='';}
+}
+function updateAccuracyCircle(){
+  const s=SPOTS.find(x=>x.id===currentSpot); const c=$('acc-circle');
+  const size=70; c.style.width=size+'px'; c.style.height=size+'px';
+  c.style.left=`calc(${s.x}% - ${size/2}px)`; c.style.top=`calc(${s.y}% - ${size/2}px)`;
+}
+
+function lockedReason(s){
+  if(s.id==='guild') return null;
+  if(!game.partner) return 'まずは 🏰ぼうけんしゃギルド で じゅんびをしよう!';
+  if(s.id==='castle' && game.kakera.length<2) return 'まおうじょうへは かけらが 2つ ひつようだ!';
+  return null;
+}
+
+function goTo(s){
+  if(moving) return;
+  if(game.cleared[s.id]){ showToast('ここは もう クリアした ばしょだ!'); return; }
+  const reason=lockedReason(s);
+  if(reason){ SFX.wrong(); showToast(reason); return; }
+
+  moving=true;
+  $('marker-lbl').textContent='いどうちゅう…';
+  let stepCnt=0;
+  const stepTimer=setInterval(()=>{ SFX.step(); if(++stepCnt>5)clearInterval(stepTimer); },220);
+
+  s.dist=15;
+  placeMarker(s.id,true);
+  currentSpot=s.id; updateAccuracyCircle();
+
+  setTimeout(()=>{
+    clearInterval(stepTimer);
+    moving=false;
+    $('marker-lbl').textContent='いまここ';
+    SFX.ping();
+    const ap=$('approach'); ap.classList.add('show');
+    setTimeout(()=>{ ap.classList.remove('show'); startEvent(s.id); }, 1300);
+  },1350);
+}
+
+function startEvent(spotId){
+  if(spotId==='guild')  return guildEvent();
+  if(spotId==='valley') return valleyEvent();
+  if(spotId==='bridge') return bridgeEvent();
+  if(spotId==='castle') return bossEvent();
+}
+function backToMap(){ renderMap(); showScreen('screen-map'); }
+
+function guildEvent(){
+  dialogScene({
+    topLabel:'🏰 ぼうけんしゃギルド(総合案内所)',
+    lines:[
+      {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:'おお……ついに きてくれたか、ゆうしゃよ!'},
+      {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:'このおうこくは いま、やみのまおう ヤミガワに おそわれておる。'},
+      {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:'8たいの せいれいは「かけら」にかえられ、おうこくの どこかに ふういんされてしまった……。'},
+      {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:'せいれいの水が にごりきるまえに、かけらをあつめ、まおうを たおしてほしい!'},
+      {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:'だが あんしんせい。あいぼうを えらぶがよい!'},
+    ],
+    onDone:choosePartner
+  });
+}
+function choosePartner(){
+  const sc=$('screen-event'); sc.onclick=null; sc.style.background='var(--night)';
+  sc.innerHTML=`<div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+    <div class="choose-title">あいぼうを えらぼう!</div>
+    ${PARTNERS.map(p=>`<div class="partner-card" data-id="${p.id}">
+      <span class="pe">${p.emoji}</span>
+      <span><span class="pn">${p.name}</span><br><span class="pd">${p.desc}</span></span></div>`).join('')}
+  </div>`;
+  sc.querySelectorAll('.partner-card').forEach(card=>{
+    card.onclick=()=>{
+      SFX.correct();
+      game.partner=PARTNERS.find(x=>x.id===card.dataset.id);
+      const p=game.partner;
+      dialogScene({
+        topLabel:'🏰 ぼうけんしゃギルド',
+        lines:[
+          {speaker:p.name,emoji:p.emoji,text:`よろしくな、ゆうしゃ! ぼく ${p.name}! いっしょに おうこくを すくおう!`},
+          {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:'よいコンビじゃ。まずは 🐉すいりゅうのたに(尾白川)へ むかうのじゃ!'},
+          {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:'みずべでは かならず おうちのひとと いっしょに こうどうするのじゃぞ!'},
+        ],
+        onDone:()=>{ game.cleared.guild=true; backToMap(); }
+      });
+    };
+  });
+}
+
+function valleyEvent(){
+  const p=game.partner;
+  dialogScene({
+    topLabel:'🐉 すいりゅうのたに(尾白川)', bg:'#0A2436',
+    lines:[
+      {speaker:'???',emoji:'🌊',text:'ゴゴゴゴ……みずが さわいでいる……!'},
+      {speaker:'すいりゅう オジラ',emoji:'🐉',text:'グオオオオ!! この たにに ちかづくな!!'},
+      {speaker:p.name,emoji:p.emoji,text:'まって! オジラのめが くろくにごってる…… まおうに あやつられてるんだ!'},
+      {speaker:p.name,emoji:p.emoji,text:'「みずのちえ」で のろいを とこう! クイズに こたえて!'},
+    ],
+    onDone:valleyQuiz
+  });
+}
+function valleyQuiz(){
+  const sc=$('screen-event'); sc.onclick=null;
+  sc.innerHTML=`
+    <div class="stage"><div class="char">🐉</div></div>
+    <div class="quiz-box">
+      <div class="quiz-label">💡 みずのちえクイズ</div>
+      <div class="quiz-q">このたにの きれいな水は、どこから ながれてくる?</div>
+      <div class="quiz-wrong" id="vq-wrong">グオオ! ちがう!! もういちど かんがえて!</div>
+      <button class="btn" data-ok="0">🗻 ふじさん</button>
+      <button class="btn" data-ok="1">🏔️ かいこまがたけ</button>
+      <button class="btn" data-ok="0">🌊 うみ</button>
+    </div>`;
+  sc.querySelectorAll('.btn').forEach(b=>{
+    b.onclick=()=>{
+      if(b.dataset.ok==='1'){
+        SFX.correct();
+        dialogScene({
+          topLabel:'🐉 すいりゅうのたに', bg:'#0A2436',
+          lines:[
+            {speaker:'すいりゅう オジラ',emoji:'✨',text:'ピカーーーッ!! ……のろいが とけていく……!'},
+            {speaker:'すいりゅう オジラ',emoji:'🐉',text:'すまなかった。このみずは 🏔️かいこまがたけ から ながれてくる めいすい なのだ。'},
+            {speaker:'すいりゅう オジラ',emoji:'🐉',text:'れいを いおう。これを うけとってくれ!'},
+          ],
+          onDone:()=>fanfare({
+            emoji:'💧',color:KAKERA.water.color,
+            title:'みずの せいれいのかけら を てにいれた!',
+            sub:'のこりのかけら、つぎは 🌉しれんのてんくうばし だ!',
+            onDone:()=>{ game.cleared.valley=true; game.kakera.push('water'); backToMap(); }
+          })
+        });
+      } else { SFX.wrong(); shakeApp(); $('vq-wrong').classList.add('show'); }
+    };
+  });
+}
+
+function bridgeEvent(){
+  const p=game.partner;
+  dialogScene({
+    topLabel:'🌉 しれんのてんくうばし(森の吊橋)', bg:'#16223A',
+    lines:[
+      {speaker:'???',emoji:'💨',text:'ヒュオオオオ…… かぜが うずまいている……'},
+      {speaker:'かぜのばんにん カゼノオオカミ',emoji:'🐺',text:'このはしを わたれるのは、ゆうきある ものだけだ!'},
+      {speaker:'かぜのばんにん カゼノオオカミ',emoji:'🐺',text:'ほんもののはしでは、たんまつを ポケットにしまって、じぶんのあしで わたるのだぞ!'},
+      {speaker:p.name,emoji:p.emoji,text:'よし、いっぽずつ すすもう! ボタンをおして はしをわたれ!'},
+    ],
+    onDone:bridgeCross
+  });
+}
+function bridgeCross(){
+  const p=game.partner;
+  const sc=$('screen-event'); sc.onclick=null;
+  sc.innerHTML=`
+    <div class="area-label">🌉 ゆうきのしれん</div>
+    <div class="stage">
+      <div class="bridge-stage"><div style="font-size:84px;">🌉</div><div style="font-size:46px;margin-top:-12px;">${p.emoji}</div></div>
+      <div class="progress-outer"><div class="progress-inner" id="br-bar"></div></div>
+      <div class="progress-txt" id="br-txt">はしを わたれ! 0%</div>
+      <div class="wind-msg" id="br-wind"></div>
+      <button class="btn btn-big" id="br-btn">👣 いっぽ すすむ!</button>
+    </div>`;
+  let progress=0,done=false;
+  $('br-btn').onclick=()=>{
+    if(done)return; SFX.step();
+    progress=Math.min(100,progress+10);
+    $('br-bar').style.width=progress+'%'; $('br-txt').textContent=`はしを わたれ! ${progress}%`;
+    if(Math.random()<0.3&&progress<100){ $('br-wind').textContent='💨 つよいかぜだ! ふんばれーー!';
+      tone(900,.3,'sawtooth',.06); setTimeout(()=>$('br-wind').textContent='',1100); }
+    if(progress>=100){ done=true; SFX.correct();
+      setTimeout(()=>dialogScene({
+        topLabel:'🌉 しれんのてんくうばし', bg:'#16223A',
+        lines:[
+          {speaker:'かぜのばんにん カゼノオオカミ',emoji:'🐺',text:'みごとだ!! きみのゆうきが かぜのせいれいを めざめさせた!'},
+          {speaker:'かぜのせいれい',emoji:'🧚',text:'ありがとう、ゆうしゃさん。このちからを きみに たくすわ!'},
+        ],
+        onDone:()=>fanfare({
+          emoji:'🌀',color:KAKERA.wind.color,
+          title:'かぜの せいれいのかけら を てにいれた!',
+          sub:'かけらが 2つ そろった! 🌋まおうじょう へ いそげ!!',
+          onDone:()=>{ game.cleared.bridge=true; game.kakera.push('wind'); backToMap(); }
+        })
+      }),500);
+    }
+  };
+}
+
+let bossHP=100;
+function bossHPBar(){ return `<div class="hp-wrap"><div class="hp-name">まおう ヤミガワ HP</div>
+  <div class="hp-outer"><div class="hp-inner" id="boss-hp" style="width:${bossHP}%"></div></div></div>`; }
+function setBossHP(v){ bossHP=Math.max(0,v); const e=$('boss-hp'); if(e)e.style.width=bossHP+'%'; }
+
+function bossEvent(){
+  bossHP=100; const p=game.partner;
+  dialogScene({
+    topLabel:'🌋 まおうじょうまえひろば(森のイベント広場)', bg:'#1A0E1E',
+    lines:[
+      {speaker:'???',emoji:'🌑',text:'ズズズズ…… くろいきりが たちこめる……'},
+      {speaker:'まおう ヤミガワ',emoji:'👿',text:'クックック…… よくきたな、ちっぽけな ゆうしゃよ。'},
+      {speaker:'まおう ヤミガワ',emoji:'👿',text:'このおうこくの きれいなみずは、ぜんぶ ニゴニゴに してやるわ!!'},
+      {speaker:p.name,emoji:p.emoji,text:'させない! みんなのおうこくだ! いくぞ、ゆうしゃ!!'},
+    ],
+    onDone:bossQuiz
+  });
+}
+function bossQuiz(){
+  const sc=$('screen-event'); sc.onclick=null;
+  sc.innerHTML=bossHPBar()+`
+    <div class="stage"><div class="char">👿</div></div>
+    <div class="quiz-box">
+      <div class="quiz-label">⚔️ ちえのこうげき!</div>
+      <div class="quiz-q">この おうこくを まもる せいれいは、ぜんぶで なんたい?</div>
+      <div class="quiz-wrong" id="bq-wrong">ヤミガワのこうげき! でも あきらめるな!</div>
+      <button class="btn" data-ok="0">3たい</button>
+      <button class="btn" data-ok="1">8たい</button>
+      <button class="btn" data-ok="0">100たい</button>
+    </div>`;
+  sc.querySelectorAll('.btn').forEach(b=>{
+    b.onclick=()=>{
+      if(b.dataset.ok==='1'){ SFX.hit(); shakeApp(); setBossHP(55);
+        setTimeout(()=>dialogScene({
+          topLabel:'🌋 まおうじょうまえひろば', bg:'#1A0E1E',
+          lines:[
+            {speaker:'まおう ヤミガワ',emoji:'👿',text:'グハァッ!! ちえのちからが いたい……!! だが まだまだァ!!'},
+            {speaker:game.partner.name,emoji:game.partner.emoji,text:'いまだ! みんなのちからを あわせて こうげきだ! がめんを れんだしろーー!!'},
+          ],
+          onDone:bossRenda
+        }),600);
+      } else { SFX.wrong(); shakeApp(); $('bq-wrong').classList.add('show'); }
+    };
+  });
+}
+function bossRenda(){
+  const sc=$('screen-event'); sc.onclick=null;
+  sc.innerHTML=bossHPBar()+`
+    <div class="stage" style="flex:0.8;"><div style="font-size:100px;" id="boss-face">👿</div></div>
+    <div class="renda-timer" id="rd-timer">⏱️ のこり 6 びょう</div>
+    <div class="renda-count" id="rd-count">0 れんだ!(めざせ25!)</div>
+    <div class="renda-help">👨‍👩‍👧 かぞくや ともだちと いっしょに れんだしてOK!</div>
+    <button class="btn btn-big" id="rd-btn" style="background:#C0392B;">💥 れんだ こうげき!!</button>
+    <div style="height:14px;"></div>`;
+  let taps=0,timeLeft=6,over=false;
+  const timer=setInterval(()=>{
+    timeLeft--; $('rd-timer').textContent=`⏱️ のこり ${timeLeft} びょう`;
+    if(timeLeft<=0){ clearInterval(timer); over=true;
+      if(taps>=25){ setBossHP(10); SFX.correct();
+        setTimeout(()=>dialogScene({
+          topLabel:'🌋 まおうじょうまえひろば', bg:'#1A0E1E',
+          lines:[
+            {speaker:'まおう ヤミガワ',emoji:'👿',text:'グオオオォ!! バカな…… この わたしが おされている だと……!?'},
+            {speaker:'💧 みずのせいれい',emoji:'💧',text:'ゆうしゃさん! わたしたちの ちからを つかって!'},
+            {speaker:'🌀 かぜのせいれい',emoji:'🌀',text:'かけらが ひかりだす……! ✨せいれいのけん✨ よ、いまここに!'},
+            {speaker:game.partner.name,emoji:game.partner.emoji,text:'けんのボタンを ながおしして ちからを ためろ! はなしたら だめだぞ!!'},
+          ],
+          onDone:bossCharge
+        }),500);
+      } else { SFX.wrong(); $('rd-timer').textContent='おしい! もういちど!'; setTimeout(bossRenda,1200); }
+    }
+  },1000);
+  $('rd-btn').onclick=()=>{ if(over)return; taps++; SFX.hit(); shakeApp(); setBossHP(Math.max(12,bossHP-1));
+    $('rd-count').textContent=`${taps} れんだ!(めざせ25!)`;
+    const f=$('boss-face'); f.style.transform=`scale(${1+Math.random()*0.15}) rotate(${(Math.random()-0.5)*14}deg)`;
+    setTimeout(()=>{ if(f)f.style.transform=''; },80);
+  };
+}
+function bossCharge(){
+  const sc=$('screen-event'); sc.onclick=null;
+  sc.innerHTML=bossHPBar()+`
+    <div class="stage" style="flex:0.8;"><div style="font-size:100px;" id="boss-face">👿</div></div>
+    <div style="font-size:58px;text-align:center;">🗡️✨</div>
+    <div class="progress-outer"><div class="progress-inner" id="ch-bar" style="background:var(--gold);"></div></div>
+    <div class="progress-txt" id="ch-txt">チャージ 0%</div>
+    <button class="btn btn-big" id="ch-btn" style="background:#8E44AD;">🗡️ ながおしで ちからをためる!</button>
+    <div style="height:14px;"></div>`;
+  let charge=0,timer=null,finished=false; const btn=$('ch-btn');
+  function start(e){ e.preventDefault(); if(finished)return; tone(220,.1,'sawtooth',.08);
+    timer=setInterval(()=>{ charge=Math.min(100,charge+4);
+      $('ch-bar').style.width=charge+'%'; $('ch-txt').textContent=`チャージ ${charge}%`;
+      if(charge%20===0)tone(220+charge*8,.07,'square',.08);
+      if(charge>=100){ clearInterval(timer); finished=true;
+        flash(); SFX.boom(); shakeApp(); setBossHP(0); $('boss-face').textContent='💥';
+        setTimeout(()=>dialogScene({
+          topLabel:'🌋 まおうじょうまえひろば', bg:'#1A0E1E',
+          lines:[
+            {speaker:'まおう ヤミガワ',emoji:'💥',text:'グワアアアアーーーッ!! おぼえていろ、ゆうしゃーーー……!!'},
+            {speaker:game.partner.name,emoji:game.partner.emoji,text:'やった…… やったぞ!! まおうを たおしたんだ!!'},
+            {speaker:'✨',emoji:'🌈',text:'おうこくに ひかりが もどっていく…… みずが きらきらと かがやきだした!'},
+          ],
+          onDone:endingEvent
+        }),1200);
+      }
+    },60);
+  }
+  function stop(){ if(finished)return; clearInterval(timer); charge=0; $('ch-bar').style.width='0%'; $('ch-txt').textContent='チャージ 0%(はなさず ながおし!)'; }
+  btn.addEventListener('mousedown',start);
+  btn.addEventListener('touchstart',start,{passive:false});
+  window.addEventListener('mouseup',stop);
+  btn.addEventListener('touchend',stop);
+}
+
+function endingEvent(){
+  game.cleared.castle=true;
+  dialogScene({
+    topLabel:'🏰 ぼうけんしゃギルド',
+    lines:[
+      {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:'おかえり、ゆうしゃよ!! おうこくに ひかりが もどった!'},
+      {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:`あいぼうの ${game.partner.name} とともに、よくぞ たたかった。`},
+      {speaker:'ちょうろう ベルガ',emoji:'🧙‍♂️',text:'きみに この おうこくさいこうの しょうごうを さずけよう!'},
+    ],
+    onDone:()=>fanfare({
+      emoji:'👑', title:'しょうごう「白州の勇者」を かくとく!',
+      sub:`あいぼう:${game.partner.emoji} ${game.partner.name} / かけら:💧🌀`,
+      onDone:()=>{ $('end-partner').textContent=`あいぼう:${game.partner.emoji} ${game.partner.name}`; showScreen('screen-ending'); }
+    })
+  });
+}
+
+function resetGame(){
+  SFX.select();
+  game={ partner:null, kakera:[], cleared:{} };
+  currentSpot='guild';
+  SPOTS[0].dist=5; SPOTS[1].dist=180; SPOTS[2].dist=260; SPOTS[3].dist=420;
+  showScreen('screen-title');
+}
+</script>
+</body>
+</html>
