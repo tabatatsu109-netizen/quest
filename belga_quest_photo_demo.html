@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>ベルガクエスト 〜5体の精霊と森のボス〜</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --night:#0B1626; --forest:#15402A; --forest-dark:#0E2C1D;
+    --river:#3FA8D8; --gold:#F2C14E; --gold-dark:#B8860B;
+    --hp:#E85D4A; --text:#FDF6E3; --green:#1A6B3C;
+  }
+  html,body{ height:100%; }
+  body{
+    background:#04070F;
+    font-family:'Hiragino Maru Gothic ProN','BIZ UDGothic','Yu Gothic',sans-serif;
+    display:flex; justify-content:center; align-items:center;
+    overflow:hidden; user-select:none;
+  }
+  #app{
+    position:relative; width:min(480px,100vw); height:min(880px,100vh);
+    background:var(--night); overflow:hidden;
+    border-radius:14px; box-shadow:0 0 60px rgba(63,168,216,.25);
+  }
+  @media (max-width:500px){ #app{ border-radius:0; } }
+
+  .screen{ position:absolute; inset:0; display:none; flex-direction:column; }
+  .screen.active{ display:flex; }
+  .scroll{ overflow-y:auto; -webkit-overflow-scrolling:touch; }
+
+  .btn{ display:block; width:calc(100% - 36px); margin:8px auto; background:var(--green); border:3px solid var(--gold); border-radius:14px; color:#fff; font-size:18px; font-weight:bold; padding:15px; cursor:pointer; text-align:center; font-family:inherit; transition:transform .08s, background .15s; }
+  .btn:hover{ background:#1f7d46; }
+  .btn:active{ transform:scale(.96); }
+  .btn-ghost{ background:rgba(255,255,255,.08); border-color:var(--gold-dark); }
+  .btn-gold{ background:var(--gold); color:#0B1626; border-color:#fff; }
+  .pulse{ animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+  @keyframes blink{ 0%,100%{opacity:1} 50%{opacity:.2} }
+  .shake{ animation:shake .25s; }
+  @keyframes shake{ 0%{transform:translateX(0)} 20%{transform:translateX(12px)} 40%{transform:translateX(-12px)} 60%{transform:translateX(8px)} 100%{transform:translateX(0)} }
+
+  .topbar{ display:flex; align-items:center; gap:8px; padding:12px 14px 6px; }
+  .back{ color:var(--gold); font-size:14px; font-weight:bold; cursor:pointer; background:rgba(255,255,255,.06); border:1px solid var(--gold-dark); border-radius:20px; padding:6px 14px; }
+  .topbar h2{ color:#fff; font-size:18px; flex:1; text-align:center; margin-right:60px; }
+
+  /* ===== スタート ===== */
+  #screen-start{ justify-content:center; text-align:center; background:linear-gradient(180deg,#060B16 0%,#0B1626 40%,#0E2C1D 100%); }
+  .start-art{ font-size:40px; letter-spacing:4px; }
+  .start-title{ color:#fff; font-size:44px; font-weight:bold; letter-spacing:2px; margin-top:14px; text-shadow:0 0 18px var(--gold),0 0 50px rgba(242,193,78,.5); }
+  .start-sub{ color:var(--gold); font-size:16px; font-weight:bold; margin-top:14px; line-height:1.6; padding:0 24px; }
+  .name-input{ width:calc(100% - 60px); margin:26px auto 4px; display:block; background:rgba(255,255,255,.1); border:2px solid var(--gold-dark); border-radius:12px; color:#fff; font-size:16px; padding:12px; text-align:center; font-family:inherit; }
+  .name-input::placeholder{ color:#7E8FA3; }
+  .name-label{ color:#9FD8FF; font-size:12px; }
+  .start-note{ color:#6C7A8E; font-size:11px; margin-top:24px; line-height:1.6; }
+
+  /* ===== エリア選択 ===== */
+  #screen-areas{ background:linear-gradient(180deg,#0B1626 0%,#102A1E 100%); }
+  .progress-pill{ text-align:center; color:var(--gold); font-size:14px; font-weight:bold; margin:2px 0 6px; }
+  .area-grid{ flex:1; overflow-y:auto; padding:6px 14px 14px; }
+  .area-card{ display:flex; align-items:center; gap:14px; background:rgba(255,255,255,.06); border:2px solid var(--gold-dark); border-radius:16px; padding:16px; margin:9px 0; cursor:pointer; transition:transform .12s, border-color .15s; }
+  .area-card:hover{ transform:scale(1.02); border-color:var(--gold); }
+  .area-card.done{ border-color:#4CAF50; background:rgba(76,175,80,.12); }
+  .area-card .ae{ font-size:46px; }
+  .area-card .an{ color:#fff; font-size:20px; font-weight:bold; }
+  .area-card .ad{ color:#C8D2DE; font-size:12.5px; margin-top:3px; }
+  .area-card .astat{ font-size:24px; }
+  .boss-cta{ margin:4px 14px 16px; }
+
+  /* ===== ミッション ===== */
+  #screen-mission{ background:linear-gradient(180deg,#0B1626 0%,#15302A 100%); }
+  .mission-body{ flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:0 24px; }
+  .mission-emoji{ font-size:96px; animation:floaty 2s ease-in-out infinite; }
+  @keyframes floaty{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-12px)} }
+  .mission-title{ color:var(--gold); font-size:24px; font-weight:bold; margin-top:14px; }
+  .mission-desc{ color:#fff; font-size:18px; line-height:1.6; margin-top:14px; }
+  .mission-hint{ color:#9FD8FF; font-size:13px; margin-top:14px; line-height:1.6; }
+  #photo-input{ display:none; }
+  .scan-overlay{ position:absolute; inset:0; background:rgba(5,8,18,.95); z-index:20; display:none; flex-direction:column; justify-content:center; align-items:center; }
+  .scan-overlay.show{ display:flex; }
+  .scan-photo{ width:180px; height:180px; border-radius:16px; object-fit:cover; border:3px solid var(--gold); box-shadow:0 0 30px rgba(242,193,78,.5); }
+  .scan-line{ color:var(--gold); font-size:16px; font-weight:bold; margin-top:18px; animation:blink 1s infinite; }
+  .scan-sub{ color:#9FD8FF; font-size:13px; margin-top:8px; }
+
+  /* ===== キャラカード ===== */
+  #screen-char{ justify-content:center; align-items:center; background:radial-gradient(circle at 50% 35%, #1A2C44 0%, #0B1626 70%); }
+  .card{ width:300px; border-radius:20px; padding:18px; border:3px solid var(--gold); background:linear-gradient(160deg,#16263c,#0d1828); box-shadow:0 12px 40px rgba(0,0,0,.6); animation:cardIn .6s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes cardIn{ from{transform:scale(.4) rotate(-8deg);opacity:0} to{transform:scale(1) rotate(0);opacity:1} }
+  .card-head{ display:flex; justify-content:space-between; align-items:center; }
+  .card-rare{ color:var(--gold); font-size:18px; letter-spacing:1px; }
+  .card-attr{ font-size:12px; font-weight:bold; padding:3px 10px; border-radius:12px; color:#fff; }
+  .card-avatar{ width:120px; height:120px; margin:10px auto; border-radius:50%; display:flex; justify-content:center; align-items:center; font-size:64px; border:4px solid rgba(255,255,255,.3); position:relative; overflow:hidden; }
+  .card-thumb{ position:absolute; bottom:-2px; right:-2px; width:42px; height:42px; border-radius:10px; object-fit:cover; border:2px solid #fff; }
+  .card-name{ color:#fff; font-size:26px; font-weight:bold; text-align:center; }
+  .card-stats{ display:flex; justify-content:space-around; margin:12px 0; }
+  .stat{ text-align:center; }
+  .stat .sv{ color:var(--gold); font-size:22px; font-weight:bold; }
+  .stat .sl{ color:#9FD8FF; font-size:11px; }
+  .card-skill{ background:rgba(242,193,78,.14); border:1px solid var(--gold-dark); border-radius:10px; padding:8px 10px; text-align:center; }
+  .card-skill .sk-l{ color:var(--gold); font-size:11px; font-weight:bold; }
+  .card-skill .sk-n{ color:#fff; font-size:16px; font-weight:bold; }
+  .card-desc{ color:#C8D2DE; font-size:12px; line-height:1.6; margin-top:10px; text-align:center; }
+  .new-badge{ position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--hp); color:#fff; font-size:13px; font-weight:bold; padding:4px 16px; border-radius:14px; }
+
+  /* ===== 仲間一覧 ===== */
+  #screen-party{ background:linear-gradient(180deg,#0B1626 0%,#102A1E 100%); }
+  .party-grid{ flex:1; overflow-y:auto; padding:6px 14px; }
+  .party-row{ display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.06); border:2px solid var(--gold-dark); border-radius:14px; padding:12px; margin:8px 0; }
+  .party-ava{ width:54px; height:54px; border-radius:50%; display:flex; justify-content:center; align-items:center; font-size:30px; border:2px solid rgba(255,255,255,.3); }
+  .party-name{ color:#fff; font-size:17px; font-weight:bold; }
+  .party-meta{ color:var(--gold); font-size:12px; margin-top:2px; }
+  .party-stats{ margin-left:auto; text-align:right; color:#C8D2DE; font-size:12px; line-height:1.5; }
+
+  /* ===== ボス戦 ===== */
+  #screen-boss{ background:radial-gradient(circle at 50% 30%, #2A1020 0%, #0B0610 80%); }
+  .boss-area{ flex:1; display:flex; flex-direction:column; align-items:center; padding-top:20px; }
+  .boss-emoji{ font-size:110px; filter:drop-shadow(0 0 20px rgba(232,93,74,.6)); }
+  .boss-name{ color:var(--hp); font-size:22px; font-weight:bold; margin-top:6px; }
+  .boss-hp-wrap{ width:80%; margin-top:10px; }
+  .boss-hp-outer{ height:22px; background:rgba(255,255,255,.15); border:2px solid #fff; border-radius:11px; overflow:hidden; }
+  .boss-hp-inner{ height:100%; width:100%; background:linear-gradient(90deg,#E85D4A,#C0392B); transition:width .5s; }
+  .boss-hp-txt{ color:#fff; font-size:13px; text-align:center; margin-top:4px; font-weight:bold; }
+  .battle-log{ background:rgba(8,14,28,.9); border:2px solid var(--gold-dark); border-radius:12px; margin:14px; padding:14px; min-height:120px; width:calc(100% - 28px); }
+  .log-line{ color:#fff; font-size:15px; line-height:1.7; opacity:0; animation:logIn .4s forwards; }
+  .log-line.skill{ color:var(--gold); font-weight:bold; }
+  .log-line.dmg{ color:#FF9F8A; }
+  @keyframes logIn{ from{opacity:0;transform:translateX(-10px)} to{opacity:1;transform:translateX(0)} }
+  .hit-flash{ position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:15; }
+  .hit-flash.go{ animation:hf .3s; }
+  @keyframes hf{ 0%{opacity:.7} 100%{opacity:0} }
+
+  /* ===== 結果 ===== */
+  #screen-result{ justify-content:center; text-align:center; }
+  #screen-result.win{ background:linear-gradient(180deg,#0B1626 0%,#143052 55%,#1A6B3C 130%); }
+  #screen-result.lose{ background:linear-gradient(180deg,#0B1626 0%,#3A1A1A 100%); }
+  .result-badge{ font-size:70px; }
+  .result-title{ color:var(--gold); font-size:28px; font-weight:bold; margin-top:8px; text-shadow:0 0 14px rgba(242,193,78,.6); }
+  .result-card{ background:rgba(255,255,255,.07); border:2px solid var(--gold); border-radius:16px; margin:20px 30px; padding:18px; }
+  .result-row{ display:flex; justify-content:space-between; color:#fff; font-size:15px; padding:6px 4px; border-bottom:1px solid rgba(255,255,255,.1); }
+  .result-row:last-child{ border-bottom:none; }
+  .result-row .rl{ color:#9FD8FF; }
+  .result-row .rv{ font-weight:bold; color:var(--gold); }
+
+  /* ===== ランキング ===== */
+  #screen-rank{ background:linear-gradient(180deg,#0B1626 0%,#102A1E 100%); }
+  .rank-list{ flex:1; overflow-y:auto; padding:6px 14px; }
+  .rank-row{ display:flex; align-items:center; gap:12px; background:rgba(255,255,255,.06); border:2px solid var(--gold-dark); border-radius:12px; padding:12px; margin:7px 0; }
+  .rank-row.me{ border-color:var(--gold); background:rgba(242,193,78,.14); }
+  .rank-no{ font-size:22px; font-weight:bold; width:40px; text-align:center; }
+  .rank-no.gold{ color:#F2C14E; } .rank-no.silver{ color:#C0C0C0; } .rank-no.bronze{ color:#CD7F32; }
+  .rank-team{ color:#fff; font-size:16px; font-weight:bold; }
+  .rank-meta{ color:#9FD8FF; font-size:11px; margin-top:2px; }
+  .rank-score{ margin-left:auto; color:var(--gold); font-size:20px; font-weight:bold; }
+  .rank-empty{ color:#7E8FA3; text-align:center; margin-top:40px; font-size:14px; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- 1. スタート -->
+  <div class="screen active" id="screen-start">
+    <div class="start-art">🌲🦌🍄🐛🍦</div>
+    <div class="start-title">ベルガクエスト</div>
+    <div class="start-sub">5体の精霊を仲間にして、<br>森のボスを倒せ！</div>
+    <div style="margin-top:10px;">
+      <div class="name-label">チーム名（家族の名前など）</div>
+      <input class="name-input" id="team-name" placeholder="例：たなかファミリー" maxlength="12">
+    </div>
+    <button class="btn pulse" style="margin-top:14px;" onclick="startAdventure()">⚔️ 冒険をはじめる</button>
+    <span class="back" style="display:inline-block;margin:8px auto 0;width:auto;" onclick="showRanking(false)">🏆 ランキングを見る</span>
+    <div class="start-note">受付でタブレットを渡し、家族で約60分の森の冒険へ。<br>各エリアで写真を撮ると、精霊が仲間になります。</div>
+  </div>
+
+  <!-- 2. エリア選択 -->
+  <div class="screen" id="screen-areas">
+    <div class="topbar"><h2>🗺️ エリアを えらぼう</h2></div>
+    <div class="progress-pill" id="area-progress">仲間 0 / 5</div>
+    <div class="area-grid" id="area-grid"></div>
+    <div class="boss-cta" id="boss-cta" style="display:none;">
+      <button class="btn btn-gold pulse" onclick="goBossIntro()">🔥 5体そろった！ ボスに挑む</button>
+    </div>
+  </div>
+
+  <!-- 3. ミッション -->
+  <div class="screen" id="screen-mission">
+    <div class="topbar"><span class="back" onclick="showScreen('screen-areas')">← もどる</span><h2 id="mission-h">ミッション</h2></div>
+    <div class="mission-body">
+      <div class="mission-emoji" id="mission-emoji">🌲</div>
+      <div class="mission-title" id="mission-title"></div>
+      <div class="mission-desc" id="mission-desc"></div>
+      <div class="mission-hint">📷 ボタンを押すと カメラまたは写真選択が ひらきます</div>
+    </div>
+    <button class="btn" onclick="document.getElementById('photo-input').click()">📷 写真を撮る</button>
+    <input type="file" id="photo-input" accept="image/*" capture="environment">
+    <!-- スキャン演出 -->
+    <div class="scan-overlay" id="scan-overlay">
+      <img class="scan-photo" id="scan-photo" alt="">
+      <div class="scan-line" id="scan-line">🔍 精霊の気配をスキャン中…</div>
+      <div class="scan-sub">写真から精霊が生まれます…</div>
+    </div>
+  </div>
+
+  <!-- 4. キャラ生成カード -->
+  <div class="screen" id="screen-char">
+    <div id="char-card-host"></div>
+    <button class="btn" style="width:300px;margin-top:18px;" onclick="addToParty()">✨ 仲間にする</button>
+  </div>
+
+  <!-- 5. 仲間一覧 -->
+  <div class="screen" id="screen-party">
+    <div class="topbar"><span class="back" onclick="showScreen('screen-areas')">← エリアへ</span><h2>🤝 なかま一覧</h2></div>
+    <div class="party-grid" id="party-grid"></div>
+    <div style="padding:0 0 14px;" id="party-cta"></div>
+  </div>
+
+  <!-- 6. ボス戦 -->
+  <div class="screen" id="screen-boss">
+    <div class="boss-area">
+      <div class="boss-emoji" id="boss-emoji">👹</div>
+      <div class="boss-name">森の魔王 ベルガノス</div>
+      <div class="boss-hp-wrap">
+        <div class="boss-hp-outer"><div class="boss-hp-inner" id="boss-hp"></div></div>
+        <div class="boss-hp-txt" id="boss-hp-txt"></div>
+      </div>
+      <div class="battle-log" id="battle-log"></div>
+    </div>
+    <div class="hit-flash" id="hit-flash"></div>
+  </div>
+
+  <!-- 7. 結果 -->
+  <div class="screen" id="screen-result">
+    <div class="result-badge" id="result-badge">👑</div>
+    <div class="result-title" id="result-title"></div>
+    <div class="result-card" id="result-card"></div>
+    <button class="btn btn-gold" id="result-rank-btn" onclick="registerRanking()">🏆 本日のランキングに登録</button>
+    <span class="back" style="display:inline-block;margin:6px auto 0;width:auto;" onclick="resetAll()">🏠 はじめから</span>
+  </div>
+
+  <!-- 8. ランキング -->
+  <div class="screen" id="screen-rank">
+    <div class="topbar"><span class="back" id="rank-back">← もどる</span><h2>🏆 本日の勇者ランキング</h2></div>
+    <div class="rank-list" id="rank-list"></div>
+    <button class="btn btn-ghost" onclick="resetAll()">🏠 タイトルへ</button>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   ベルガクエスト 写真でキャラ収集デモ（HTML単体）
+   GPS / API / JSONBin 連携なし・localStorageランキング
+============================================================ */
+
+/* ---- エリア定義 ---- */
+const AREAS = [
+  { id:'forest',  emoji:'🌲', name:'森エリア',     mission:'葉っぱや木の写真を撮ろう',
+    char:{ name:'モミジーナ', attr:'もり',   attrColor:'#4CAF50', icon:'🍁', skill:'リーフストーム',  desc:'森の奥で千年ねむっていた葉っぱの精霊。やさしいが怒るとこわい。' } },
+  { id:'river',   emoji:'💧', name:'川エリア',     mission:'水辺や川の写真を撮ろう',
+    char:{ name:'ミズノコ',   attr:'みず',   attrColor:'#3FA8D8', icon:'💧', skill:'アクアバースト',  desc:'尾白川のせせらぎから生まれた水の子。きれいな水が大すき。' } },
+  { id:'bug',     emoji:'🐛', name:'昆虫エリア',   mission:'虫や地面の写真を撮ろう',
+    char:{ name:'クロアリスカウト', attr:'むし', attrColor:'#8D6E63', icon:'🐜', skill:'マンドリルラッシュ', desc:'森のパトロールをするアリの兵士。仲間思いで力もち。' } },
+  { id:'mushroom',emoji:'🍄', name:'キノコエリア', mission:'キノコや自然物の写真を撮ろう',
+    char:{ name:'キノコルビー', attr:'どく',  attrColor:'#9C27B0', icon:'🍄', skill:'スポアエクスプロード', desc:'あやしく光るキノコの精霊。ふしぎな胞子であいてをまどわす。' } },
+  { id:'shop',    emoji:'🍦', name:'売店エリア',   mission:'ソフトクリームや売店の商品を撮ろう',
+    char:{ name:'ソフトン',   attr:'こおり', attrColor:'#26C6DA', icon:'🍦', skill:'フローズンメルト', desc:'べるが名物ソフトクリームの妖精。とけないうちに勝負あり！' } },
+];
+
+const RARE_STAR = (n)=> '★'.repeat(n) + '☆'.repeat(5-n);
+const rnd = (min,max)=> Math.floor(Math.random()*(max-min+1))+min;
+
+let state = {
+  team:'ぼうけんしゃ',
+  party:[],          // 仲間キャラ
+  pending:null,      // 生成中キャラ
+  startTime:null,
+  result:null,
+};
+
+const $=(id)=>document.getElementById(id);
+function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); $(id).classList.add('active'); }
+
+/* ---- 効果音（Web Audio・ファイル不要） ---- */
+let AC=null;
+function ac(){ if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)();} if(AC.state==='suspended')AC.resume(); return AC; }
+function tone(f,d=0.12,t='square',v=0.12,w=0){ try{const c=ac(),o=c.createOscillator(),g=c.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,c.currentTime+w);g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+w+d);o.connect(g);g.connect(c.destination);o.start(c.currentTime+w);o.stop(c.currentTime+w+d+.05);}catch(e){} }
+const SFX={
+  tap:()=>{tone(660,.07);tone(990,.1,'square',.1,.07);},
+  scan:()=>{tone(1320,.1,'sine',.1);tone(1760,.15,'sine',.08,.1);},
+  reveal:()=>{[523,659,784,1047,1319].forEach((f,i)=>tone(f,.16,'square',.12,i*.1));tone(2093,.4,'triangle',.1,.6);},
+  hit:()=>{tone(120,.08,'sawtooth',.2);tone(90,.1,'square',.14,.03);},
+  win:()=>{[523,659,784,1047,1319,1568,2093].forEach((f,i)=>tone(f,.2,'square',.12,i*.1));},
+  lose:()=>{tone(300,.3,'sawtooth',.14);tone(220,.4,'sawtooth',.12,.15);tone(160,.5,'square',.1,.3);},
+};
+
+/* ============================================================
+   1 → 2  冒険開始
+============================================================ */
+function startAdventure(){
+  ac(); SFX.tap();
+  const nm = $('team-name').value.trim();
+  state.team = nm || 'ぼうけんしゃ';
+  state.party = [];
+  state.startTime = Date.now();
+  renderAreas();
+  showScreen('screen-areas');
+}
+
+/* ============================================================
+   2  エリア選択
+============================================================ */
+function renderAreas(){
+  const grid=$('area-grid'); grid.innerHTML='';
+  AREAS.forEach(a=>{
+    const got = state.party.find(c=>c.areaId===a.id);
+    const d=document.createElement('div');
+    d.className='area-card'+(got?' done':'');
+    d.innerHTML=`<span class="ae">${a.emoji}</span>
+      <div style="flex:1;"><div class="an">${a.name}</div><div class="ad">${a.mission}</div></div>
+      <span class="astat">${got?'⭐':'📷'}</span>`;
+    d.onclick=()=>{ SFX.tap(); got ? showParty() : openMission(a.id); };
+    grid.appendChild(d);
+  });
+  $('area-progress').textContent=`仲間 ${state.party.length} / 5`;
+  $('boss-cta').style.display = state.party.length>=5 ? 'block' : 'none';
+}
+
+/* ============================================================
+   3  ミッション
+============================================================ */
+let currentArea=null;
+function openMission(areaId){
+  currentArea = AREAS.find(a=>a.id===areaId);
+  $('mission-h').textContent = currentArea.name;
+  $('mission-emoji').textContent = currentArea.emoji;
+  $('mission-title').textContent = 'ミッション';
+  $('mission-desc').textContent = currentArea.mission;
+  $('photo-input').value='';
+  showScreen('screen-mission');
+}
+
+/* 写真選択 → スキャン演出 → キャラ生成
+   【将来】ここで撮った写真を AI画像解析API に送り、
+   写真の内容（葉・水・虫など）に応じてキャラの種類や
+   ステータスを決定する処理に差し替える。 */
+$('photo-input').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    const dataUrl = ev.target.result;
+    runScan(dataUrl);
+  };
+  reader.readAsDataURL(file);
+});
+
+function runScan(photoDataUrl){
+  $('scan-photo').src = photoDataUrl;
+  $('scan-overlay').classList.add('show');
+  SFX.scan();
+  const lines=['🔍 精霊の気配をスキャン中…','✨ 写真にひそむ力を解析中…','🌟 精霊が めざめます…'];
+  let i=0; $('scan-line').textContent=lines[0];
+  const t=setInterval(()=>{ i++; if(i<lines.length){$('scan-line').textContent=lines[i];SFX.scan();} }, 900);
+  setTimeout(()=>{
+    clearInterval(t);
+    $('scan-overlay').classList.remove('show');
+    generateCharacter(photoDataUrl);
+  }, 2800);
+}
+
+/* 写真の平均色を取り出してアバター背景に反映（自分の写真が反映される演出） */
+function avgColorFromImage(dataUrl, cb){
+  const img=new Image();
+  img.onload=()=>{
+    try{
+      const cv=document.createElement('canvas'); cv.width=16; cv.height=16;
+      const ctx=cv.getContext('2d'); ctx.drawImage(img,0,0,16,16);
+      const d=ctx.getImageData(0,0,16,16).data;
+      let r=0,g=0,b=0,n=0;
+      for(let i=0;i<d.length;i+=4){ r+=d[i];g+=d[i+1];b+=d[i+2];n++; }
+      cb(`rgb(${Math.round(r/n)},${Math.round(g/n)},${Math.round(b/n)})`);
+    }catch(e){ cb('#2a3a52'); }
+  };
+  img.onerror=()=>cb('#2a3a52');
+  img.src=dataUrl;
+}
+
+/* ============================================================
+   4  キャラクター生成（ランダムステータス）
+   【将来】レア度やステータスを、AI解析した写真スコアに
+   連動させる（例：きれいな写真ほど高レア）。
+============================================================ */
+function generateCharacter(photoDataUrl){
+  const base = currentArea.char;
+  const rare = rnd(1,5);
+  const char = {
+    areaId: currentArea.id,
+    name: base.name,
+    attr: base.attr,
+    attrColor: base.attrColor,
+    icon: base.icon,
+    skill: base.skill,
+    desc: base.desc,
+    rare: rare,
+    hp: rnd(80,200),
+    atk: rnd(20,80),
+    def: rnd(10,60),
+    photo: photoDataUrl,
+    avatarBg:'#2a3a52',
+  };
+  state.pending = char;
+  avgColorFromImage(photoDataUrl, (col)=>{ char.avatarBg=col; renderCharCard(char); });
+  renderCharCard(char);
+  SFX.reveal();
+  showScreen('screen-char');
+}
+
+function renderCharCard(c){
+  $('char-card-host').innerHTML = `
+    <div class="card">
+      <div class="new-badge">NEW!</div>
+      <div class="card-head">
+        <span class="card-rare">${RARE_STAR(c.rare)}</span>
+        <span class="card-attr" style="background:${c.attrColor}">${c.attr}</span>
+      </div>
+      <div class="card-avatar" style="background:radial-gradient(circle at 40% 35%, rgba(255,255,255,.25), ${c.avatarBg})">
+        ${c.icon}
+        <img class="card-thumb" src="${c.photo}" alt="">
+      </div>
+      <div class="card-name">${c.name}</div>
+      <div class="card-stats">
+        <div class="stat"><div class="sv">${c.hp}</div><div class="sl">HP</div></div>
+        <div class="stat"><div class="sv">${c.atk}</div><div class="sl">こうげき</div></div>
+        <div class="stat"><div class="sv">${c.def}</div><div class="sl">ぼうぎょ</div></div>
+      </div>
+      <div class="card-skill"><div class="sk-l">ひっさつわざ</div><div class="sk-n">${c.skill}</div></div>
+      <div class="card-desc">${c.desc}</div>
+    </div>`;
+}
+
+function addToParty(){
+  SFX.tap();
+  if(state.pending){ state.party.push(state.pending); state.pending=null; }
+  showParty();
+}
+
+/* ============================================================
+   5  仲間一覧
+============================================================ */
+function showParty(){
+  const grid=$('party-grid'); grid.innerHTML='';
+  state.party.forEach(c=>{
+    const d=document.createElement('div');
+    d.className='party-row';
+    d.innerHTML=`<div class="party-ava" style="background:radial-gradient(circle at 40% 35%, rgba(255,255,255,.25), ${c.avatarBg})">${c.icon}</div>
+      <div><div class="party-name">${c.name}</div><div class="party-meta">${RARE_STAR(c.rare)} / ${c.attr}・${c.skill}</div></div>
+      <div class="party-stats">HP ${c.hp}<br>こうげき ${c.atk}<br>ぼうぎょ ${c.def}</div>`;
+    grid.appendChild(d);
+  });
+  const cta=$('party-cta');
+  if(state.party.length>=5){
+    cta.innerHTML=`<button class="btn btn-gold pulse" onclick="goBossIntro()">🔥 ボスに挑む！</button>`;
+  } else {
+    cta.innerHTML=`<button class="btn" onclick="backToAreas()">🗺️ つぎのエリアへ（あと ${5-state.party.length}体）</button>`;
+  }
+  showScreen('screen-party');
+}
+function backToAreas(){ SFX.tap(); renderAreas(); showScreen('screen-areas'); }
+
+/* ============================================================
+   6  ボス戦
+============================================================ */
+const BOSS_MAX_HP = 600;
+function goBossIntro(){
+  SFX.tap();
+  showScreen('screen-boss');
+  $('battle-log').innerHTML='';
+  let bossHP = BOSS_MAX_HP;
+  setBossHP(bossHP);
+
+  const log=$('battle-log');
+  const addLog=(txt,cls='')=>{ const p=document.createElement('div'); p.className='log-line '+cls; p.textContent=txt; log.appendChild(p); log.scrollTop=log.scrollHeight; };
+
+  addLog('森の魔王 ベルガノス が たちはだかった！','skill');
+
+  // 合計戦力（攻撃力 × レア度補正）
+  let totalPower = 0;
+  state.party.forEach(c=> totalPower += c.atk * (1 + c.rare*0.2));
+  const avgRare = state.party.reduce((s,c)=>s+c.rare,0)/state.party.length;
+
+  // 順番に攻撃
+  let idx=0;
+  const turn=()=>{
+    if(idx>=state.party.length){ finishBattle(bossHP, totalPower, avgRare); return; }
+    const c=state.party[idx];
+    const dmg = Math.round(c.atk * (1 + c.rare*0.3) * (0.8+Math.random()*0.6));
+    bossHP = Math.max(0, bossHP - dmg);
+    SFX.hit(); flashHit();
+    addLog(`${c.icon} ${c.name} の ひっさつわざ！`,'skill');
+    setTimeout(()=>{ addLog(`「${c.skill}」！ ベルガノスに ${dmg} のダメージ！`,'dmg'); setBossHP(bossHP); },350);
+    idx++;
+    setTimeout(turn, 1100);
+  };
+  setTimeout(turn, 900);
+}
+
+function setBossHP(hp){
+  const pct = Math.max(0, hp/BOSS_MAX_HP*100);
+  $('boss-hp').style.width=pct+'%';
+  $('boss-hp-txt').textContent=`HP ${hp} / ${BOSS_MAX_HP}`;
+}
+function flashHit(){ const f=$('hit-flash'); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); const b=$('boss-emoji'); b.style.transform='translateX('+((Math.random()-0.5)*20)+'px)'; setTimeout(()=>b.style.transform='',120); }
+
+function finishBattle(bossHP, totalPower, avgRare){
+  const log=$('battle-log');
+  const addLog=(txt,cls='')=>{ const p=document.createElement('div'); p.className='log-line '+cls; p.textContent=txt; log.appendChild(p); log.scrollTop=log.scrollHeight; };
+  // 勝敗：ボスHPを削りきる or 合計戦力がしきい値超え（緊張感のため低レア編成は負けることも）
+  const win = bossHP<=0 || totalPower >= 250;
+  setTimeout(()=>{
+    if(win){ addLog('ベルガノスを たおした！！','skill'); }
+    else { addLog('あと一歩 とどかなかった…！','dmg'); }
+    setTimeout(()=> showResult(win, totalPower, avgRare), 1200);
+  }, 600);
+}
+
+/* ============================================================
+   7  結果
+============================================================ */
+function showResult(win, totalPower, avgRare){
+  const elapsedSec = Math.round((Date.now()-state.startTime)/1000);
+  const mm=String(Math.floor(elapsedSec/60)).padStart(2,'0');
+  const ss=String(elapsedSec%60).padStart(2,'0');
+  const timeStr=`${mm}:${ss}`;
+  // スコア：合計戦力 + 平均レア度ボーナス + クリア早さボーナス
+  const timeBonus = Math.max(0, 1200 - elapsedSec);
+  const score = Math.round(totalPower*3 + avgRare*200 + (win?500:0) + timeBonus);
+
+  state.result = { win, timeStr, score, avgRare:avgRare.toFixed(1), elapsedSec };
+
+  const sc=$('screen-result');
+  sc.classList.remove('win','lose'); sc.classList.add(win?'win':'lose');
+  $('result-badge').textContent = win?'👑':'💀';
+  $('result-title').textContent = win ? 'ベルガの勇者 認定！' : 'またの挑戦を まつ…';
+  $('result-card').innerHTML = `
+    <div class="result-row"><span class="rl">けっか</span><span class="rv">${win?'勝利 🎉':'敗北'}</span></div>
+    <div class="result-row"><span class="rl">クリアタイム</span><span class="rv">${timeStr}</span></div>
+    <div class="result-row"><span class="rl">合計スコア</span><span class="rv">${score}</span></div>
+    <div class="result-row"><span class="rl">仲間の平均レア度</span><span class="rv">★${avgRare.toFixed(1)}</span></div>
+    <div class="result-row"><span class="rl">チーム</span><span class="rv">${state.team}</span></div>`;
+  $('result-rank-btn').style.display = 'block';
+  $('result-rank-btn').textContent = '🏆 本日のランキングに登録';
+  win ? SFX.win() : SFX.lose();
+  showScreen('screen-result');
+}
+
+/* ============================================================
+   8  ランキング（localStorage）
+   【将来】localStorage を JSONBin 保存に差し替えれば
+   全タブレット共通のランキングになる。
+   【将来】受付モニター用の大画面ランキング表示ページを別途用意。
+============================================================ */
+const RANK_KEY = 'belga_quest_ranking';
+function loadRanking(){
+  try{ return JSON.parse(localStorage.getItem(RANK_KEY)||'[]'); }catch(e){ return []; }
+}
+function saveRanking(list){
+  try{ localStorage.setItem(RANK_KEY, JSON.stringify(list)); }catch(e){}
+}
+function registerRanking(){
+  SFX.tap();
+  if(!state.result) return;
+  const list = loadRanking();
+  const entry = {
+    team: state.team,
+    score: state.result.score,
+    time: state.result.timeStr,
+    avgRare: state.result.avgRare,
+    win: state.result.win,
+    ts: Date.now(),
+  };
+  list.push(entry);
+  saveRanking(list);
+  $('result-rank-btn').textContent = '✅ 登録しました！';
+  $('result-rank-btn').style.display='none';
+  setTimeout(()=> showRanking(true, entry.ts), 500);
+}
+
+function showRanking(fromResult, myTs){
+  const list = loadRanking().sort((a,b)=> b.score-a.score);
+  const host=$('rank-list'); host.innerHTML='';
+  if(list.length===0){
+    host.innerHTML='<div class="rank-empty">まだ記録がありません。<br>冒険をクリアして、最初の勇者になろう！</div>';
+  } else {
+    list.forEach((e,i)=>{
+      const cls = i===0?'gold':i===1?'silver':i===2?'bronze':'';
+      const isMe = myTs && e.ts===myTs;
+      const row=document.createElement('div');
+      row.className='rank-row'+(isMe?' me':'');
+      row.innerHTML=`<div class="rank-no ${cls}">${i+1}</div>
+        <div><div class="rank-team">${e.team} ${e.win?'👑':''}</div>
+        <div class="rank-meta">⏱️ ${e.time} / ★${e.avgRare}</div></div>
+        <div class="rank-score">${e.score}</div>`;
+      host.appendChild(row);
+    });
+  }
+  $('rank-back').onclick = ()=>{ SFX.tap(); showScreen(fromResult?'screen-result':'screen-start'); };
+  showScreen('screen-rank');
+}
+
+/* ---- リセット ---- */
+function resetAll(){
+  SFX.tap();
+  state.party=[]; state.pending=null; state.result=null;
+  $('team-name').value=state.team==='ぼうけんしゃ'?'':state.team;
+  showScreen('screen-start');
+}
+</script>
+</body>
+</html>
